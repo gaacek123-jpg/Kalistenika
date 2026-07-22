@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kalistenika",
-    "slug": "Kalistenika",
+    "slug": "personalwelnessapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -40,6 +40,12 @@
           "color": "#E0A200"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fe5efcb8-d3b0-4c2d-acf5-4e2708f82258"
+      }
+    },
+    "owner": "gaaceks-team"
   }
 }
