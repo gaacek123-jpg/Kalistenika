@@ -73,10 +73,12 @@ export async function rescheduleAll(config: ReminderConfig) {
   if (Platform.OS === 'web') return;
   await cancelAll();
   if (!config.enabled) return;
+  await ensureChannels(); // kanały muszą istnieć ZANIM cokolwiek do nich zaplanujemy
 
   // Trening: dla każdego dnia pon/śr/pt i każdej godziny — tygodniowy repeat.
   for (const weekday of TRAINING_WEEKDAYS) {
-    config.trainingTimes.forEach(async (t, i) => {
+    for (let i = 0; i < config.trainingTimes.length; i++) {
+      const t = config.trainingTimes[i];
       const line = intraday(i);
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -94,7 +96,7 @@ export async function rescheduleAll(config: ReminderConfig) {
           minute: t.minute,
         },
       });
-    });
+    }
   }
 
   // Dziennik: codziennie o wskazanej godzinie.
