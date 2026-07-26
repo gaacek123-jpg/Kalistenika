@@ -4,6 +4,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,14 +15,29 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, font, HIT, mono, radius, space } from '../theme';
 
-export function Screen({ children, scroll = true, style }: { children: React.ReactNode; scroll?: boolean; style?: any }) {
+export function Screen({ children, scroll = true, style, onRefresh }: { children: React.ReactNode; scroll?: boolean; style?: any; onRefresh?: () => void }) {
+  const [refreshing, setRefreshing] = React.useState(false);
+  const handleRefresh = () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    onRefresh();
+    setTimeout(() => setRefreshing(false), 450);
+  };
   const inner = (
     <View style={[{ padding: space.lg, gap: space.md }, style]}>{children}</View>
   );
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       {scroll ? (
-        <ScrollView contentContainerStyle={{ paddingBottom: space.xxl }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: space.xxl }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} colors={[colors.accent]} progressBackgroundColor={colors.surface} />
+            ) : undefined
+          }
+        >
           {inner}
         </ScrollView>
       ) : (

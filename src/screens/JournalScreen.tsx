@@ -1,8 +1,8 @@
 // Dziennik dnia: nastrój, kalendarz jedzenia (wpisy z godziną, jak spotkania),
 // waga, greasing the groove + osobny widget sobotniego spaceru (spec §2).
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../store/AppState';
 import { ymd, isSaturday, shortDate, addDays } from '../logic/dates';
@@ -24,7 +24,8 @@ type PickerReq = { value: string; onPick: (hm: string) => void } | null;
 
 export default function JournalScreen() {
   const app = useApp();
-  const today = ymd();
+  const [today, setToday] = useState(ymd());
+  const todayRef = useRef(today);
   const [selectedDate, setSelectedDate] = useState(today);
   const day = app.getDay(selectedDate);
   const isToday = selectedDate === today;
@@ -47,6 +48,22 @@ export default function JournalScreen() {
     setNewText('');
     setNewTime(nowHM());
   };
+
+  // Odśwież bieżący dzień i domyślną godzinę (przycisk ⟳ / pull-to-refresh / powrót apki na pierwszy plan).
+  const refreshNow = useCallback(() => {
+    const nt = ymd();
+    setSelectedDate((sd) => (sd === todayRef.current ? nt : sd)); // byłeś na „dziś" → przeskocz na realne dziś
+    todayRef.current = nt;
+    setToday(nt);
+    setNewTime(nowHM());
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') refreshNow();
+    });
+    return () => sub.remove();
+  }, [refreshNow]);
 
   // Zmiana edytowanego dnia → odśwież lokalne pola tekstowe z tego dnia.
   useEffect(() => {
@@ -90,8 +107,13 @@ export default function JournalScreen() {
   );
 
   return (
-    <Screen>
-      <Title>Dziennik</Title>
+    <Screen onRefresh={refreshNow}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Title>Dziennik</Title>
+        <Pressable onPress={refreshNow} style={styles.refreshBtn} hitSlop={8}>
+          <AppText monoFont size={20} weight="700" style={{ color: colors.accent }}>⟳</AppText>
+        </Pressable>
+      </View>
 
       {/* Nawigator dnia — cofnij się, by uzupełnić wczoraj/wcześniej */}
       <View style={styles.dateNav}>
@@ -425,4 +447,5 @@ const styles = StyleSheet.create({
   actRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingHorizontal: space.md, paddingVertical: space.sm },
   dateNav: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: space.sm, paddingHorizontal: space.md },
   dateArrow: { width: HIT, height: HIT, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  refreshBtn: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
 });
