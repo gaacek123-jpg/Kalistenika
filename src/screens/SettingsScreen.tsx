@@ -12,6 +12,7 @@ import { ReminderConfig } from '../types';
 import { deloadDue } from '../logic/derive';
 import { emptyData, parseImport, serialize } from '../store/storage';
 import { fireTest, requestPermissions, scheduledCount } from '../notifications/notify';
+import { exactAlarmAllowed, fireAlarmTest, openExactAlarmSettings } from '../notifications/alarm';
 import { ymd } from '../logic/dates';
 import { colors, font, mono, radius, space } from '../theme';
 import { AppText, Button, Card, Divider, Screen, SectionLabel, Title } from '../components/ui';
@@ -22,10 +23,12 @@ export default function SettingsScreen() {
   const app = useApp();
   const r = app.data.reminders;
   const [count, setCount] = useState<number | null>(null);
+  const [alarmOk, setAlarmOk] = useState<boolean | null>(null);
   const [picker, setPicker] = useState<{ open: boolean; kind: 'training' | 'journal'; index: number }>({ open: false, kind: 'training', index: 0 });
 
   useEffect(() => {
     scheduledCount().then(setCount).catch(() => setCount(null));
+    exactAlarmAllowed().then(setAlarmOk).catch(() => setAlarmOk(null));
   }, [r]);
 
   const update = (patch: Partial<ReminderConfig>) => app.updateReminders({ ...r, ...patch });
@@ -179,10 +182,28 @@ export default function SettingsScreen() {
         </View>
 
         <Divider />
-        <Button small kind="ghost" label="Wyślij testowe powiadomienie" onPress={() => fireTest()} />
+        <View style={{ flexDirection: 'row', gap: space.md }}>
+          <Button small kind="ghost" label="Test powiadomienia" onPress={() => fireTest()} style={{ flex: 1 }} />
+          <Button small label="Test budzika" onPress={() => fireAlarmTest()} style={{ flex: 1 }} />
+        </View>
+        <AppText faint size={font.tiny}>Zaplanowanych powiadomień: {count ?? '—'}. „Test budzika" zadzwoni za ~3 s (pełny ekran).</AppText>
+
+        <Divider />
+        <SectionLabel>Budzik — uprawnienia</SectionLabel>
         <AppText faint size={font.tiny}>
-          Zaplanowanych powiadomień: {count ?? '—'}. Uwaga: prawdziwy „budzik" bywa ograniczany przez oszczędzanie
-          baterii — wyłącz optymalizację baterii dla tej apki, jeśli powiadomienia się spóźniają.
+          Godziny oznaczone „⏰ budzik" dzwonią pełnoekranowo, głośnością alarmu, aż wyłączysz. Wymaga zgody
+          na dokładne alarmy i pełny ekran.
+        </AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <View style={[styles.dot, { backgroundColor: alarmOk == null ? colors.textFaint : alarmOk ? colors.good : colors.danger }]} />
+          <AppText size={font.small} dim>
+            Dokładne alarmy: {alarmOk == null ? '—' : alarmOk ? 'włączone' : 'ZABLOKOWANE'}
+          </AppText>
+        </View>
+        <Button small kind="ghost" label="Ustawienia alarmów / pełny ekran" onPress={() => openExactAlarmSettings()} />
+        <AppText faint size={font.tiny}>
+          Dodatkowo wyłącz optymalizację baterii dla apki, a na Xiaomi/Samsung/Oppo włącz „autostart" —
+          inaczej system potrafi ubić budzik.
         </AppText>
       </Card>
 
@@ -243,4 +264,5 @@ const styles = StyleSheet.create({
   timeBtn: { backgroundColor: colors.surfaceAlt, paddingHorizontal: space.lg, paddingVertical: space.sm, borderRadius: radius.sm },
   alarmChip: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderStrong },
   del: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 10, height: 10, borderRadius: 5 },
 });

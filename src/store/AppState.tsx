@@ -7,6 +7,12 @@ import { TEMPLATES } from '../data/plan';
 import { metAdvanceCriteria, nextLevelId, updateRecords } from '../logic/derive';
 import { ymd } from '../logic/dates';
 import { rescheduleAll } from '../notifications/notify';
+import { scheduleAlarms } from '../notifications/alarm';
+
+const syncNotifications = (reminders: AppData['reminders']) => {
+  rescheduleAll(reminders).catch(() => {});
+  scheduleAlarms(reminders.enabled, reminders.trainingTimes).catch(() => {});
+};
 
 type SaveResult = {
   beatenRecords: PersonalRecord[];
@@ -72,7 +78,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setData(loaded);
       setLoading(false);
       // Ustaw powiadomienia zgodnie z zapisaną konfiguracją.
-      rescheduleAll(loaded.reminders).catch(() => {});
+      syncNotifications(loaded.reminders);
     })();
   }, []);
 
@@ -200,7 +206,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const updateReminders: Ctx['updateReminders'] = (config) => {
       setData((p) => ({ ...p, reminders: config }));
-      rescheduleAll(config).catch(() => {});
+      syncNotifications(config);
     };
 
     const markDeloadDone: Ctx['markDeloadDone'] = () => {
@@ -209,7 +215,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const replaceAll: Ctx['replaceAll'] = (next) => {
       setData(next);
-      rescheduleAll(next.reminders).catch(() => {});
+      syncNotifications(next.reminders);
     };
 
     return {

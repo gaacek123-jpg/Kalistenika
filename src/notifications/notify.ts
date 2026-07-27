@@ -79,6 +79,7 @@ export async function rescheduleAll(config: ReminderConfig) {
   for (const weekday of TRAINING_WEEKDAYS) {
     for (let i = 0; i < config.trainingTimes.length; i++) {
       const t = config.trainingTimes[i];
+      if (t.alarm) continue; // budziki obsługuje Notifee (pełnoekranowo) — patrz alarm.ts
       const line = intraday(i);
       await Notifications.scheduleNotificationAsync({
         content: {
