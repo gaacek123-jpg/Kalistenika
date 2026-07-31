@@ -57,6 +57,7 @@ function hydrate(raw: Partial<AppData>): AppData {
       mealEntries,
       emotions,
       emotionReason: d.emotionReason ?? '',
+      sleepSegments: Array.isArray(d.sleepSegments) ? d.sleepSegments : [],
       sleepHours: d.sleepHours ?? null,
       sleepQuality: d.sleepQuality ?? null,
       activities: Array.isArray(d.activities) ? d.activities : [],

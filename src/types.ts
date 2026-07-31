@@ -67,6 +67,14 @@ export type Session = {
   completed: boolean;
 };
 
+/** Segment snu: noc lub drzemka, ze znacznikami początku i końca (HH:MM). */
+export type SleepSegment = {
+  id: string;
+  start: string; // "HH:MM" (dla nocy: godzina zaśnięcia, zwykle poprzedni wieczór)
+  end: string; // "HH:MM" (godzina pobudki)
+  nap: boolean; // true = drzemka, false = sen główny (noc)
+};
+
 /** Pojedynczy wpis jedzeniowy — freetext ze znacznikiem godziny (jak spotkanie w kalendarzu). */
 export type MealEntry = {
   id: string;
@@ -89,8 +97,9 @@ export type DayLog = {
   mood: Scale5 | null;
   emotions: string[]; // dominujące emocje dnia (wielokrotny wybór)
   emotionReason: string; // powód / kontekst emocji
-  sleepHours: number | null; // przespane godziny (ważne pod cykliczność)
-  sleepQuality: Scale5 | null; // jakość snu 1–5
+  sleepSegments: SleepSegment[]; // noc + drzemki (początek/koniec)
+  sleepHours: number | null; // suma godzin (auto z segmentów; legacy: ręczna wartość)
+  sleepQuality: Scale5 | null; // jakość snu (nocy) 1–5
 
   walkDone: boolean | null; // tylko soboty; null = dzień nieweekendowy / niezadeklarowany
   walkNote: string;

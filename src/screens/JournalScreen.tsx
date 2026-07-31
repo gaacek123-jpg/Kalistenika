@@ -6,7 +6,8 @@ import { AppState, Platform, Pressable, StyleSheet, TextInput, View } from 'reac
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../store/AppState';
 import { ymd, isSaturday, shortDate, addDays } from '../logic/dates';
-import { MealEntry } from '../types';
+import { MealEntry, SleepSegment } from '../types';
+import { fmtHours, napHours, nightSegment, segmentHours, totalSleepHours } from '../logic/sleep';
 import { colors, font, HIT, radius, space } from '../theme';
 import { AppText, Button, Card, Scale5Input, Screen, SectionLabel, Stepper, Title } from '../components/ui';
 import { CountdownOverlay } from '../components/Timer';
@@ -48,6 +49,24 @@ export default function JournalScreen() {
     setNewText('');
     setNewTime(nowHM());
   };
+
+  // --- Sen (segmenty: noc + drzemki) ---
+  const setSegments = (segs: SleepSegment[]) => {
+    const total = segs.length ? Math.round(totalSleepHours(segs) * 10) / 10 : null;
+    app.patchDay(selectedDate, { sleepSegments: segs, sleepHours: total });
+  };
+  const setNight = (patch: Partial<SleepSegment>) => {
+    const naps = day.sleepSegments.filter((s) => s.nap);
+    const cur = nightSegment(day.sleepSegments) ?? { id: `sn-${Date.now()}`, start: '23:00', end: '07:00', nap: false };
+    setSegments([{ ...cur, ...patch }, ...naps]);
+  };
+  const addNap = () => {
+    const n = nowHM();
+    setSegments([...day.sleepSegments, { id: `sd-${Date.now()}`, start: n, end: n, nap: true }]);
+  };
+  const setNap = (id: string, patch: Partial<SleepSegment>) =>
+    setSegments(day.sleepSegments.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const delNap = (id: string) => setSegments(day.sleepSegments.filter((s) => s.id !== id));
 
   // Odśwież bieżący dzień i domyślną godzinę (przycisk ⟳ / pull-to-refresh / powrót apki na pierwszy plan).
   const refreshNow = useCallback(() => {
@@ -183,13 +202,63 @@ export default function JournalScreen() {
         )}
       </Card>
 
-      {/* Sen — ważny sygnał pod cykliczność nastroju */}
+      {/* Sen — noc (od–do) + drzemki. Kluczowy sygnał pod cykliczność. */}
       <Card>
-        <SectionLabel>Sen ostatniej nocy</SectionLabel>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <Stepper value={day.sleepHours ?? 0} onChange={(v) => app.patchDay(selectedDate, { sleepHours: v })} step={0.5} min={0} max={16} unit="h" />
-          {day.sleepHours != null ? <Button small kind="ghost" label="wyczyść" onPress={() => app.patchDay(selectedDate, { sleepHours: null })} /> : null}
-        </View>
+        <SectionLabel>Sen w nocy</SectionLabel>
+        {(() => {
+          const night = nightSegment(day.sleepSegments);
+          const naps = day.sleepSegments.filter((s) => s.nap);
+          const total = day.sleepSegments.length ? totalSleepHours(day.sleepSegments) : day.sleepHours ?? 0;
+          const np = napHours(day.sleepSegments);
+          return (
+            <>
+              <View style={styles.sleepRow}>
+                <View style={{ alignItems: 'center' }}>
+                  <AppText faint size={font.tiny}>zasnąłem</AppText>
+                  <Pressable style={styles.timeChipSm} onPress={() => openTime(night?.start ?? '23:00', (hm) => setNight({ start: hm }))}>
+                    <AppText monoFont weight="700">{night?.start ?? '—:—'}</AppText>
+                  </Pressable>
+                </View>
+                <AppText dim monoFont>→</AppText>
+                <View style={{ alignItems: 'center' }}>
+                  <AppText faint size={font.tiny}>pobudka</AppText>
+                  <Pressable style={styles.timeChipSm} onPress={() => openTime(night?.end ?? '07:00', (hm) => setNight({ end: hm }))}>
+                    <AppText monoFont weight="700">{night?.end ?? '—:—'}</AppText>
+                  </Pressable>
+                </View>
+                <View style={{ flex: 1 }} />
+                <AppText monoFont weight="700" size={font.h3} style={{ color: colors.accent }}>{night ? fmtHours(segmentHours(night)) : '—'}</AppText>
+              </View>
+
+              {naps.length > 0 ? (
+                <>
+                  <SectionLabel>Drzemki</SectionLabel>
+                  {naps.map((nap) => (
+                    <View key={nap.id} style={styles.sleepRow}>
+                      <Pressable style={styles.timeChipSm} onPress={() => openTime(nap.start, (hm) => setNap(nap.id, { start: hm }))}>
+                        <AppText monoFont weight="700">{nap.start}</AppText>
+                      </Pressable>
+                      <AppText dim monoFont>→</AppText>
+                      <Pressable style={styles.timeChipSm} onPress={() => openTime(nap.end, (hm) => setNap(nap.id, { end: hm }))}>
+                        <AppText monoFont weight="700">{nap.end}</AppText>
+                      </Pressable>
+                      <AppText monoFont dim size={font.small}>{fmtHours(segmentHours(nap))}</AppText>
+                      <View style={{ flex: 1 }} />
+                      <Pressable onPress={() => delNap(nap.id)} style={styles.iconBtn}><AppText dim>✕</AppText></Pressable>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+              <Button small kind="ghost" label="+ dodaj drzemkę" onPress={addNap} />
+
+              <AppText dim size={font.small}>
+                Łącznie: <AppText monoFont weight="700" style={{ color: colors.text }}>{fmtHours(total)}</AppText>
+                {np > 0 ? `  ·  drzemki ${fmtHours(np)}` : ''}
+              </AppText>
+            </>
+          );
+        })()}
+
         <View style={{ height: space.xs }} />
         <SectionLabel>Jakość snu</SectionLabel>
         <Scale5Input value={day.sleepQuality} onChange={(v) => app.patchDay(selectedDate, { sleepQuality: v })} labelLow="fatalny" labelHigh="rewelacyjny" />
@@ -448,4 +517,5 @@ const styles = StyleSheet.create({
   dateNav: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: space.sm, paddingHorizontal: space.md },
   dateArrow: { width: HIT, height: HIT, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   refreshBtn: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  sleepRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: 4 },
 });

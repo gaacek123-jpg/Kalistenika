@@ -13,6 +13,7 @@ import { deloadDue } from '../logic/derive';
 import { emptyData, parseImport, serialize } from '../store/storage';
 import { fireTest, requestPermissions, scheduledCount } from '../notifications/notify';
 import { exactAlarmAllowed, fireAlarmTest, openExactAlarmSettings } from '../notifications/alarm';
+import { napHours, nightSegment } from '../logic/sleep';
 import { ymd } from '../logic/dates';
 import { colors, font, mono, radius, space } from '../theme';
 import { AppText, Button, Card, Divider, Screen, SectionLabel, Title } from '../components/ui';
@@ -83,16 +84,21 @@ export default function SettingsScreen() {
   const doExportCsv = async () => {
     try {
       const esc = (s: unknown) => '"' + String(s ?? '').replace(/"/g, '""') + '"';
-      const header = ['data', 'nastroj_1_5', 'emocje', 'powod', 'sen_godziny', 'sen_jakosc_1_5', 'wpisy_dnia', 'inne_aktywnosci', 'gtg_podejscia', 'spacer'].join(',');
+      const header = ['data', 'nastroj_1_5', 'emocje', 'powod', 'sen_godziny', 'sen_od', 'sen_do', 'drzemki_h', 'sen_jakosc_1_5', 'wpisy_dnia', 'inne_aktywnosci', 'gtg_podejscia', 'spacer'].join(',');
       const rows = [...app.data.days]
         .sort((a, b) => a.date.localeCompare(b.date))
-        .map((d) =>
-          [
+        .map((d) => {
+          const night = nightSegment(d.sleepSegments ?? []);
+          const np = napHours(d.sleepSegments ?? []);
+          return [
             d.date,
             d.mood ?? '',
             (d.emotions ?? []).join('|'),
             d.emotionReason ?? '',
             d.sleepHours ?? '',
+            night?.start ?? '',
+            night?.end ?? '',
+            np > 0 ? Math.round(np * 10) / 10 : '',
             d.sleepQuality ?? '',
             (d.mealEntries ?? []).map((m) => `${m.time} ${m.text}`).join(' | '),
             (d.activities ?? []).map((a) => `${a.name}${a.minutes != null ? ` ${a.minutes}min` : ''}`).join(' | '),
@@ -100,8 +106,8 @@ export default function SettingsScreen() {
             d.walkDone === true ? 1 : d.walkDone === false ? 0 : '',
           ]
             .map(esc)
-            .join(','),
-        );
+            .join(',');
+        });
       const csv = [header, ...rows].join('\n');
       const path = `${FileSystem.cacheDirectory}kalistenika-nastroj-${ymd()}.csv`;
       await FileSystem.writeAsStringAsync(path, csv);

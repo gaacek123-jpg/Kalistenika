@@ -54,6 +54,7 @@ const emptyDay = (date: string): DayLog => ({
   mood: null,
   emotions: [],
   emotionReason: '',
+  sleepSegments: [],
   sleepHours: null,
   sleepQuality: null,
   walkDone: null,
