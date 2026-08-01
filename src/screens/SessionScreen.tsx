@@ -57,6 +57,7 @@ export default function SessionScreen({ navigation }: any) {
 
   const [finishOpen, setFinishOpen] = useState(false);
   const [runnerOpen, setRunnerOpen] = useState(false);
+  const [activationOpen, setActivationOpen] = useState(false);
 
   const setValue = (slot: number, set: number, patch: Partial<WSet>) => {
     setWork((w) => w.map((s, si) => (si === slot ? s.map((x, xi) => (xi === set ? { ...x, ...patch } : x)) : s)));
@@ -166,6 +167,16 @@ export default function SessionScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* Tryb nawyku — dziś liczy się, że zaczynasz */}
+        <Card style={{ borderColor: colors.accentDim }}>
+          <SectionLabel>Tryb nawyku</SectionLabel>
+          <AppText size={font.small}>
+            Dziś liczy się jedno: że <AppText size={font.small} weight="700" style={{ color: colors.accent }}>zaczynasz</AppText>.
+            Cokolwiek zrobisz — 1 seria czy komplet — trening jest zaliczony.
+          </AppText>
+          <Button label="▶ Zaczynam · mata za 2 min" onPress={() => setActivationOpen(true)} />
+        </Card>
+
         <SessionBody
           template={template}
           work={work}
@@ -182,9 +193,9 @@ export default function SessionScreen({ navigation }: any) {
           openRunner={() => setRunnerOpen(true)}
         />
 
-        <Button label={`Zakończ sesję · ${doneCount}/${totalSets} serii`} onPress={() => setFinishOpen(true)} kind="good" />
+        <Button label="Zalicz trening ✓" onPress={() => setFinishOpen(true)} kind="good" />
         <AppText faint size={font.tiny} style={{ textAlign: 'center' }}>
-          Sukces = liczba sesji i rekordy, nie kilogramy.
+          Nie musisz zrobić wszystkiego. Pojawiłeś się = wygrana{doneCount > 0 ? ` · dziś ${doneCount} serii` : ''}.
         </AppText>
       </ScrollView>
 
@@ -198,6 +209,16 @@ export default function SessionScreen({ navigation }: any) {
       />
 
       <FinishModal visible={finishOpen} onCancel={() => setFinishOpen(false)} onConfirm={finish} />
+
+      {/* Rytuał startu — obniża próg wejścia (jak przy spacerze) */}
+      <CountdownOverlay
+        visible={activationOpen}
+        seconds={120}
+        label="Mata na podłogę — schodzimy"
+        mode="rest"
+        onDone={() => setActivationOpen(false)}
+        onCancel={() => setActivationOpen(false)}
+      />
 
       <WarmupRunner
         visible={runnerOpen}
