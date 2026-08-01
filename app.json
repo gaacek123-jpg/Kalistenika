@@ -40,7 +40,8 @@
       [
         "expo-notifications",
         {
-          "color": "#E0A200"
+          "color": "#E0A200",
+          "sounds": ["./assets/alarm.wav"]
         }
       ]
     ],

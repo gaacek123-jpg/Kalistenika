@@ -40,6 +40,7 @@ export default function JournalScreen() {
   const [actName, setActName] = useState('');
   const [actMin, setActMin] = useState(30);
   const [copied, setCopied] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
   const [newTime, setNewTime] = useState(nowHM());
   const [newText, setNewText] = useState('');
   const [picker, setPicker] = useState<PickerReq>(null);
@@ -77,6 +78,8 @@ export default function JournalScreen() {
     todayRef.current = nt;
     setToday(nt);
     setNewTime(nowHM());
+    setJustRefreshed(true);
+    setTimeout(() => setJustRefreshed(false), 1400);
   }, []);
 
   useEffect(() => {
@@ -140,9 +143,12 @@ export default function JournalScreen() {
     <Screen onRefresh={refreshNow}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Title>Dziennik</Title>
-        <Pressable onPress={refreshNow} style={styles.refreshBtn} hitSlop={8}>
-          <AppText monoFont size={20} weight="700" style={{ color: colors.accent }}>⟳</AppText>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          {justRefreshed ? <AppText size={font.tiny} weight="700" style={{ color: colors.good }}>✓ odświeżono</AppText> : null}
+          <Pressable onPress={refreshNow} style={[styles.refreshBtn, justRefreshed && { backgroundColor: colors.goodDim }]} hitSlop={8}>
+            <AppText monoFont size={20} weight="700" style={{ color: justRefreshed ? colors.good : colors.accent }}>{justRefreshed ? '✓' : '⟳'}</AppText>
+          </Pressable>
+        </View>
       </View>
 
       {/* Nawigator dnia — cofnij się, by uzupełnić wczoraj/wcześniej */}

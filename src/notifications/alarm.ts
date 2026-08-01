@@ -13,7 +13,10 @@ import notifee, {
 } from '@notifee/react-native';
 import { intraday } from '../data/reminders';
 
-export const ALARM_CHANNEL = 'alarm-fullscreen';
+// v2: nowy ID wymusza utworzenie kanału od nowa z własnym dźwiękiem + wibracją
+// (kanałów Androida NIE da się zaktualizować po utworzeniu).
+export const ALARM_CHANNEL = 'alarm-fullscreen-v2';
+const ALARM_SOUND = 'alarm'; // assets/alarm.wav spakowany przez expo-notifications
 const ID_PREFIX = 'alarm-';
 // Dni treningowe w numeracji JS getDay(): pon=1, śr=3, pt=5.
 const TRAINING_WEEKDAYS = [1, 3, 5];
@@ -25,9 +28,9 @@ export async function ensureAlarmChannel() {
     id: ALARM_CHANNEL,
     name: 'Budzik treningowy',
     importance: AndroidImportance.HIGH,
-    sound: 'default',
+    sound: ALARM_SOUND,
     vibration: true,
-    vibrationPattern: [500, 600, 500, 600],
+    vibrationPattern: [400, 600, 400, 600, 400, 600],
     visibility: AndroidVisibility.PUBLIC,
     bypassDnd: true,
   });
@@ -71,6 +74,8 @@ function alarmNotification(id: string, body: string, title: string) {
       category: AndroidCategory.ALARM,
       importance: AndroidImportance.HIGH,
       visibility: AndroidVisibility.PUBLIC,
+      sound: ALARM_SOUND,
+      vibrationPattern: [400, 600, 400, 600, 400, 600],
       fullScreenAction: { id: 'alarm' },
       pressAction: { id: 'alarm' },
       loopSound: true,
