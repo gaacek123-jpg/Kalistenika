@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Clipboard from 'expo-clipboard';
 import { useApp } from '../store/AppState';
 import { ymd, isSaturday, shortDate, addDays } from '../logic/dates';
 import { MealEntry, SleepSegment } from '../types';
@@ -38,6 +39,7 @@ export default function JournalScreen() {
   const [reason, setReason] = useState(day.emotionReason);
   const [actName, setActName] = useState('');
   const [actMin, setActMin] = useState(30);
+  const [copied, setCopied] = useState(false);
   const [newTime, setNewTime] = useState(nowHM());
   const [newText, setNewText] = useState('');
   const [picker, setPicker] = useState<PickerReq>(null);
@@ -104,6 +106,15 @@ export default function JournalScreen() {
   };
   const longDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const copyDayLog = async () => {
+    const entries = day.mealEntries ?? [];
+    if (entries.length === 0) return;
+    const text = `${longDate(selectedDate)} (${selectedDate})\n${entries.map((m) => `${m.time}  ${m.text}`).join('\n')}`;
+    await Clipboard.setStringAsync(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   // Trend nastroju — ostatnie dni z zapisanym nastrojem (do wglądu w tendencję).
   const moodTrend = useMemo(
@@ -266,7 +277,16 @@ export default function JournalScreen() {
 
       {/* Dziennik dnia — wpisy z godziną: jedzenie, suplementy, notatki */}
       <Card>
-        <SectionLabel>Dziennik dnia · wpisy z godziną</SectionLabel>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionLabel>Dziennik dnia · wpisy z godziną</SectionLabel>
+          {(day.mealEntries ?? []).length > 0 ? (
+            <Pressable onPress={copyDayLog} hitSlop={8} style={styles.copyBtn}>
+              <AppText size={font.tiny} weight="700" style={{ color: copied ? colors.good : colors.accent }}>
+                {copied ? '✓ Skopiowano' : '⧉ Kopiuj'}
+              </AppText>
+            </Pressable>
+          ) : null}
+        </View>
         <AppText faint size={font.tiny}>Jedzenie, suplementy, notatki — cokolwiek, ze znacznikiem czasu. Wpisz, kiedy się wydarzy (np. „magnez 200 mg" gdy weźmiesz).</AppText>
 
         {/* dodawanie */}
@@ -518,4 +538,5 @@ const styles = StyleSheet.create({
   dateArrow: { width: HIT, height: HIT, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   refreshBtn: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   sleepRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: 4 },
+  copyBtn: { paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt },
 });
