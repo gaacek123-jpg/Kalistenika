@@ -2,9 +2,11 @@
 // waga, greasing the groove + osobny widget sobotniego spaceru (spec §2).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { AppState, Image, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useApp } from '../store/AppState';
 import { ymd, isSaturday, shortDate, addDays } from '../logic/dates';
 import { MealEntry, SleepSegment } from '../types';
@@ -21,6 +23,8 @@ const nowHM = () => {
   const d = new Date();
   return `${two(d.getHours())}:${two(d.getMinutes())}`;
 };
+const PHOTO_DIR = (FileSystem.documentDirectory ?? '') + 'photos/';
+const photoUri = (name: string) => PHOTO_DIR + name;
 
 type PickerReq = { value: string; onPick: (hm: string) => void } | null;
 
@@ -41,6 +45,7 @@ export default function JournalScreen() {
   const [actMin, setActMin] = useState(30);
   const [copied, setCopied] = useState(false);
   const [justRefreshed, setJustRefreshed] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const [newTime, setNewTime] = useState(nowHM());
   const [newText, setNewText] = useState('');
   const [picker, setPicker] = useState<PickerReq>(null);
@@ -51,6 +56,24 @@ export default function JournalScreen() {
     app.addMeal(selectedDate, newTime, newText.trim());
     setNewText('');
     setNewTime(nowHM());
+  };
+
+  // Zdjęcie prosto z apki (aparat) → zapis do photos/ i wpis w dzienniku dnia.
+  const takePhoto = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchCameraAsync({ quality: 0.5 });
+      if (res.canceled || !res.assets?.length) return;
+      await FileSystem.makeDirectoryAsync(PHOTO_DIR, { intermediates: true }).catch(() => {});
+      const name = `p-${Date.now()}.jpg`;
+      await FileSystem.copyAsync({ from: res.assets[0].uri, to: photoUri(name) });
+      app.addMeal(selectedDate, nowHM(), newText.trim(), name); // tekst opcjonalny — możesz dopisać później
+      setNewText('');
+      setNewTime(nowHM());
+    } catch (e) {
+      // cicho — brak aparatu / anulowano
+    }
   };
 
   // --- Sen (segmenty: noc + drzemki) ---
@@ -310,7 +333,10 @@ export default function JournalScreen() {
             returnKeyType="done"
           />
         </View>
-        <Button small label="+ Dodaj wpis" onPress={addEntry} />
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <Button small label="+ Dodaj wpis" onPress={addEntry} style={{ flex: 1 }} />
+          <Button small kind="ghost" label="📷 Zdjęcie" onPress={takePhoto} />
+        </View>
 
         {/* dzisiejsza oś czasu */}
         <View style={{ gap: space.sm, marginTop: space.sm }}>
@@ -324,6 +350,7 @@ export default function JournalScreen() {
                 onSave={(patch) => app.updateMeal(selectedDate, m.id, patch)}
                 onDelete={() => app.deleteMeal(selectedDate, m.id)}
                 openTime={openTime}
+                onViewPhoto={setViewPhoto}
               />
             ))
           )}
@@ -470,6 +497,14 @@ export default function JournalScreen() {
           }}
         />
       )}
+
+      {/* Podgląd zdjęcia na pełnym ekranie */}
+      <Modal visible={!!viewPhoto} transparent animationType="fade" onRequestClose={() => setViewPhoto(null)}>
+        <Pressable style={styles.photoBackdrop} onPress={() => setViewPhoto(null)}>
+          {viewPhoto ? <Image source={{ uri: photoUri(viewPhoto) }} style={styles.photoFull} resizeMode="contain" /> : null}
+          <AppText faint size={font.tiny} style={{ marginTop: space.lg }}>dotknij, by zamknąć</AppText>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -480,11 +515,13 @@ function EntryRow({
   onSave,
   onDelete,
   openTime,
+  onViewPhoto,
 }: {
   entry: MealEntry;
   onSave: (patch: Partial<MealEntry>) => void;
   onDelete: () => void;
   openTime: (value: string, onPick: (hm: string) => void) => void;
+  onViewPhoto: (name: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [time, setTime] = useState(entry.time);
@@ -512,7 +549,12 @@ function EntryRow({
       <View style={styles.entryTimeCol}>
         <AppText monoFont weight="700" numberOfLines={1} style={{ color: colors.accent }}>{entry.time}</AppText>
       </View>
-      <AppText style={{ flex: 1 }}>{entry.text}</AppText>
+      {entry.photo ? (
+        <Pressable onPress={() => onViewPhoto(entry.photo!)}>
+          <Image source={{ uri: photoUri(entry.photo) }} style={styles.thumb} />
+        </Pressable>
+      ) : null}
+      <AppText style={{ flex: 1 }} dim={!entry.text}>{entry.text || (entry.photo ? '📷 zdjęcie' : '')}</AppText>
       <Pressable onPress={() => setEditing(true)} style={styles.iconBtn}><AppText dim>✎</AppText></Pressable>
       <Pressable onPress={onDelete} style={styles.iconBtn}><AppText dim>✕</AppText></Pressable>
     </View>
@@ -545,4 +587,7 @@ const styles = StyleSheet.create({
   refreshBtn: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   sleepRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: 4 },
   copyBtn: { paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt },
+  thumb: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt },
+  photoBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center', padding: space.lg },
+  photoFull: { width: '100%', height: '80%' },
 });

@@ -80,6 +80,7 @@ export type MealEntry = {
   id: string;
   time: string; // "HH:MM"
   text: string; // wolny tekst, bez liczenia kalorii
+  photo?: string; // nazwa pliku zdjęcia w katalogu photos/ (opcjonalne, robione z apki)
 };
 
 /** Inna aktywność fizyczna dnia (poza planem treningowym) — np. taniec, rower. */

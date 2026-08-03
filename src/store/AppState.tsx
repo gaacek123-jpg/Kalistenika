@@ -26,7 +26,7 @@ type Ctx = {
   setLevel: (exerciseId: string, levelId: string) => void;
   getDay: (date: string) => DayLog;
   patchDay: (date: string, patch: Partial<DayLog>) => void;
-  addMeal: (date: string, time: string, text: string) => void;
+  addMeal: (date: string, time: string, text: string, photo?: string) => void;
   updateMeal: (date: string, id: string, patch: Partial<MealEntry>) => void;
   deleteMeal: (date: string, id: string) => void;
   addActivity: (date: string, name: string, minutes: number | null) => void;
@@ -150,8 +150,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    const addMeal: Ctx['addMeal'] = (date, time, text) => {
-      const entry: MealEntry = { id: `m-${Date.now()}`, time, text };
+    const addMeal: Ctx['addMeal'] = (date, time, text, photo) => {
+      const entry: MealEntry = { id: `m-${Date.now()}`, time, text, ...(photo ? { photo } : {}) };
       mutateMeals(date, (e) => [...e, entry].sort((a, b) => a.time.localeCompare(b.time)));
     };
 

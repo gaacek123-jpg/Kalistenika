@@ -43,6 +43,12 @@
           "color": "#E0A200",
           "sounds": ["./assets/alarm.wav"]
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Aparat służy do robienia zdjęć posiłków/etykiet do dziennika."
+        }
       ]
     ],
     "extra": {
